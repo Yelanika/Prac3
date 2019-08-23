@@ -4,8 +4,8 @@
  * Modified for EEE3095S/3096S by Keegan Crankshaw
  * August 2019
  * 
- * <STUDNUM_1> <STUDNUM_2>
- * Date
+ * <GNSSEN002> <STUDNUM_2>
+ * Date 21/08/21
 */
 
 #include <wiringPi.h>
@@ -22,6 +22,9 @@ long lastInterruptTime = 0; //Used for button debounce
 int RTC; //Holds the RTC instance
 
 int HH,MM,SS;
+
+const int HRLED[]={0,6,4,27}      //creating an array for hour LEDs
+const int MINLED[]={2,3,7,25,22,21} //creating an array for minutes LEDs
 
 void initGPIO(void){
 	/* 
@@ -41,6 +44,8 @@ void initGPIO(void){
 	
 	//Set Up the Seconds LED for PWM
 	//Write your logic here
+	pinmode(1, PWM_OUTPUT)
+
 	
 	printf("LEDS done\n");
 	
@@ -51,7 +56,8 @@ void initGPIO(void){
 	}
 	
 	//Attach interrupts to Buttons
-	//Write your logic here
+	wiringPilSR(30,INT_EDGE_FALLING,hourInc);
+	wiringPilSR(5,INT_EDGE_FALLING,minInc);
 	
 	printf("BTNS done\n");
 	printf("Setup done\n");
@@ -74,7 +80,7 @@ int main(void){
 	// Repeat this until we shut down
 	for (;;){
 		//Fetch the time from the RTC
-		//Write your logic here
+		
 		
 		//Function calls to toggle LEDs
 		//Write your logic here

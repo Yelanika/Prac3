@@ -23,8 +23,8 @@ int RTC; //Holds the RTC instance
 
 int HH,MM,SS;
 
-const int HRLED[]={0,6,4,27}      //creating an array for hour LEDs
-const int MINLED[]={2,3,7,25,22,21} //creating an array for minutes LEDs
+const int HRLED[]={0,6,4,27};      //creating an array for hour LEDs
+const int MINLED[]={2,3,7,25,22,21}; //creating an array for minutes LEDs
 
 void initGPIO(void){
 	/* 
@@ -43,7 +43,7 @@ void initGPIO(void){
 	}
 	
 	//Set Up the Seconds LED for PWM
-	pinmode(1, PWM_OUTPUT)
+	pinMode(1, PWM_OUTPUT);
 
 	
 	printf("LEDS done\n");
@@ -55,8 +55,8 @@ void initGPIO(void){
 	}
 	
 	//Attach interrupts to Buttons
-	wiringPilSR(30,INT_EDGE_FALLING,hourInc);
-	wiringPilSR(5,INT_EDGE_FALLING,minInc);
+	wiringPiISR(30,INT_EDGE_FALLING,hourInc);
+	wiringPiISR(5,INT_EDGE_FALLING,minInc);
 	
 	printf("BTNS done\n");
 	printf("Setup done\n");
@@ -72,29 +72,30 @@ int main(void){
 
 	//Set random time (3:04PM)
 	//You can comment this file out later
-	wiringPiI2CWriteReg8(RTC, HOUR, 0x13+TIMEZONE);
-	wiringPiI2CWriteReg8(RTC, MIN, 0x4);
-	wiringPiI2CWriteReg8(RTC, SEC, 0x00);
+	wiringPiI2CWriteReg8(RTC, HOUR, 0x1);
+	wiringPiI2CWriteReg8(RTC, MIN, 0x3);
+	wiringPiI2CWriteReg8(RTC, SEC, 0b10000000);
 	
 	// Repeat this until we shut down
 	for (;;){
 		//Fetch the time from the RTC
-		HH=wiringPil2CReadReg8(RTC,HOUR);  
-		MM=wiringPil2CReadReg8(RTC,MIN); 
-		SS=wiringPil2CReadReg8(RTC,SEC);
+		HH=wiringPiI2CReadReg8(RTC,HOUR);  
+		MM=wiringPiI2CReadReg8(RTC,MIN); 
+		SS=wiringPiI2CReadReg8(RTC,SEC);
 		
 		HH=hFormat(HH);
 		HH=hexCompensation(HH);
 		MM=hexCompensation(MM);
+		SS=hexCompensation(SS);
 		
 		lightMins(MM);
 		lightHours(HH);
-		secPWM(SS)
+		secPWM(SS);
 		//Function calls to toggle LEDs
 		//Write your logic here
 		
 		// Print out the time we have stored on our RTC
-		printf("The current time is: %x:%x:%x\n", hours, mins, secs);
+		printf("The current time is: %d:%d:%d\n", HH, MM, SS);
 
 		//using a delay to make our program "less CPU hungry"
 		delay(1000); //milliseconds
@@ -107,6 +108,8 @@ int main(void){
  */
 int hFormat(int hours){
 	/*formats to 12h*/
+	hours =hexCompensation(hours);
+
 	if (hours >= 24){
 		hours = 0;
 	}
@@ -120,14 +123,39 @@ int hFormat(int hours){
  * Turns on corresponding LED's for hours
  */
 void lightHours(int units){
-	// Write your logic to light up the hour LEDs here	
+	int t=units;
+	int remainder=0;
+	int ledarr[]={0,0,0,0};
+	
+	for (int i = 0;i<=3;i++)
+	{
+		remainder=t%2;
+		t=t/2;
+		ledarr[i]=remainder;
+	}
+	for (int i=0; i<=3; i++)
+	{
+		digitalWrite(HRLED[i], ledarr[i]);
+	}
 }
 
 /*
  * Turn on the Minute LEDs
  */
 void lightMins(int units){
-	//Write your logic to light up the minute LEDs here
+	int t=units;
+	int remainder=0;
+	int ledarr[]={0,0,0,0,0,0};
+	for (int i=0; i<=5; i++)
+	{
+		remainder= t%2;
+		t=t/2;
+		ledarr[i]=remainder;
+	}
+	for (int j=0; j<=5; j++)
+	{
+		digitalWrite(MINLED[j], ledarr[j]);
+	}
 }
 
 /*
@@ -136,7 +164,9 @@ void lightMins(int units){
  * The LED should be "off" at 0 seconds, and fully bright at 59 seconds
  */
 void secPWM(int units){
-	// Write your logic here
+	int output =hexCompensation(units);
+	output=1.67*output;
+	pwmWrite(1,output);
 }
 
 /*
@@ -208,8 +238,20 @@ void hourInc(void){
 	if (interruptTime - lastInterruptTime>200){
 		printf("Interrupt 1 triggered, %x\n", hours);
 		//Fetch RTC Time
+		HH=wiringPiI2CReadReg8(RTC, HOUR);
+		HH=hexCompensation(HH);
+
 		//Increase hours by 1, ensuring not to overflow
+		if(HH==12)
+		{
+			HH=0X1;
+		}
+		else HH+=1;
+		HH=decCompensation(HH);
+
 		//Write hours back to the RTC
+		wiringPiI2CWriteReg8(RTC,HOUR,HH);
+
 	}
 	lastInterruptTime = interruptTime;
 }
@@ -226,8 +268,19 @@ void minInc(void){
 	if (interruptTime - lastInterruptTime>200){
 		printf("Interrupt 2 triggered, %x\n", mins);
 		//Fetch RTC Time
+		MM=wiringPiI2CReadReg8(RTC,MIN);
+		MM=hexCompensation(MM);
+
 		//Increase minutes by 1, ensuring not to overflow
+		if (MM==59)
+		{
+			MM=0;
+		}
+		else MM=MM+1;
+		MM=decCompensation(MM);
+
 		//Write minutes back to the RTC
+		wiringPiI2CWriteReg8(RTC,MIN,MM);
 	}
 	lastInterruptTime = interruptTime;
 }

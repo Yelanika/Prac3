@@ -43,7 +43,6 @@ void initGPIO(void){
 	}
 	
 	//Set Up the Seconds LED for PWM
-	//Write your logic here
 	pinmode(1, PWM_OUTPUT)
 
 	
@@ -80,8 +79,17 @@ int main(void){
 	// Repeat this until we shut down
 	for (;;){
 		//Fetch the time from the RTC
+		HH=wiringPil2CReadReg8(RTC,HOUR);  
+		MM=wiringPil2CReadReg8(RTC,MIN); 
+		SS=wiringPil2CReadReg8(RTC,SEC);
 		
+		HH=hFormat(HH);
+		HH=hexCompensation(HH);
+		MM=hexCompensation(MM);
 		
+		lightMins(MM);
+		lightHours(HH);
+		secPWM(SS)
 		//Function calls to toggle LEDs
 		//Write your logic here
 		
